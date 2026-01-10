@@ -13,6 +13,26 @@ mod media;
 mod utils;
 mod webrtc;
 
+// Android entry point is in android.rs
+#[cfg(target_os = "android")]
+mod android;
+
+#[cfg(target_os = "android")]
+pub use android::android_main;
+
+// Desktop entry point
+#[cfg(not(target_os = "android"))]
+fn main() -> Result<()> {
+    // ... existing main() code stays here
+}
+
+// Prevent main() from being called on Android
+#[cfg(target_os = "android")]
+fn main() {
+    // Android uses android_main() as the entry point
+    panic!("main() should not be called on Android - use android_main()");
+}
+
 use anyhow::Result;
 use log::info;
 use parking_lot::Mutex;

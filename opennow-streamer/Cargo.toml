@@ -165,3 +165,34 @@ naga = { git = "https://github.com/gfx-rs/wgpu", tag = "v28.0.0" }
 egui-wgpu = { git = "https://github.com/zortos293/egui", branch = "wgpu-28" }
 egui-winit = { git = "https://github.com/zortos293/egui", branch = "wgpu-28" }
 egui = { git = "https://github.com/zortos293/egui", branch = "wgpu-28" }
+
+# ==================== ANDROID-SPECIFIC DEPENDENCIES ====================
+[target.'cfg(target_os = "android")'.dependencies]
+# Android NDK integration
+ndk = "0.9"
+ndk-context = "0.1"
+ndk-sys = "0.6"
+jni = "0.21"
+
+# Android activity (winit 0.30 uses this internally)
+android-activity = { version = "0.6", features = ["native-activity"] }
+
+# Audio playback - use oboe for low-latency
+oboe = { version = "0.6", features = ["java-interface"] }
+
+# Logging for logcat
+android_logger = "0.14"
+
+# Replace cpal with oboe on Android
+[target.'cfg(not(target_os = "android"))'.dependencies]
+cpal = "0.15"
+
+# ==================== ANDROID BUILD CONFIGURATION ====================
+[lib]
+name = "opennow_streamer"
+crate-type = ["cdylib", "rlib"]  # cdylib for Android, rlib for tests
+
+[[bin]]
+name = "opennow-streamer"
+path = "src/main.rs"
+required-features = []  # Desktop-only binary
