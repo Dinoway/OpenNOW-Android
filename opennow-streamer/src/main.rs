@@ -39,6 +39,7 @@ use winit::window::WindowId;
 use app::{App, AppState};
 use gui::Renderer;
 
+
 /// Application handler for winit 0.30+
 struct OpenNowApp {
     /// Tokio runtime handle
