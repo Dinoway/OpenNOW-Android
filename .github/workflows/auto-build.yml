@@ -282,8 +282,9 @@ jobs:
             ARCH_DIR="armeabi-v7a"
           fi
           
-          cp opennow-streamer/target/${{ matrix.rust_target }}/release/libopennow_streamer.so \
-             android-project/app/src/main/jniLibs/$ARCH_DIR/
+          echo "Copying library to jniLibs/$ARCH_DIR/"
+          cp -v opennow-streamer/target/${{ matrix.rust_target }}/release/libopennow_streamer.so \
+             android-project/app/src/main/jniLibs/$ARCH_DIR/libopennow_streamer.so
 
       - name: Create AndroidManifest.xml
         run: |
