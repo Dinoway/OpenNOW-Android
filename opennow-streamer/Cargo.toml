@@ -14,16 +14,14 @@ tokio = { version = "1", features = ["full", "sync", "time", "rt-multi-thread", 
 webrtc = "0.11"
 webrtc-util = "0.8"
 
-# HTTP client
-reqwest = { version = "0.12", features = ["json", "rustls-tls", "gzip"] }
+# HTTP client - use rustls for Android compatibility
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "gzip", "http2"] }
 
-# WebSocket (signaling)
-tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
+# WebSocket (signaling) - use rustls with webpki-roots for Android
+tokio-tungstenite = { version = "0.24", default-features = false, features = ["rustls-tls-webpki-roots"] }
 futures-util = "0.3"
 
-# TLS
-native-tls = "0.2"
-tokio-native-tls = "0.3"
+# TLS (native-tls moved to platform-specific section below)
 
 # Audio decoding - FFmpeg for Opus (all platforms)
 # Video decoding uses native APIs (DXVA on Windows, Vulkan Video on Linux, VideoToolbox on macOS)
@@ -35,8 +33,7 @@ openh264 = "0.6"
 # Audio decoding (stub for now - will add opus decoding later)
 # audiopus requires CMake to build, so we'll stub audio for now
 
-# Audio playback (cross-platform)
-cpal = "0.15"
+# Audio playback - cpal for desktop, oboe for Android (see platform-specific sections below)
 
 # Gamepad/Controller support (cross-platform)
 gilrs = "0.11"
@@ -133,14 +130,6 @@ version = "2.21"
 features = ["xlib", "xinput"]
 optional = true
 
-[features]
-default = []
-x11-input = ["x11"]
-# Legacy macOS support for Intel Macs (2015 and older)
-# Disables zero-copy Metal rendering and uses CPU-copy fallback
-# Build with: cargo build --release --features legacy-macos
-legacy-macos = []
-
 [target.'cfg(target_os = "linux")'.dependencies.wgpu-hal]
 version = "28"
 features = ["vulkan"]
@@ -166,7 +155,12 @@ egui-wgpu = { git = "https://github.com/zortos293/egui", branch = "wgpu-28" }
 egui-winit = { git = "https://github.com/zortos293/egui", branch = "wgpu-28" }
 egui = { git = "https://github.com/zortos293/egui", branch = "wgpu-28" }
 
-# ==================== ANDROID-SPECIFIC DEPENDENCIES ====================
+# ==================== PLATFORM-SPECIFIC DEPENDENCIES ====================
+[target.'cfg(not(target_os = "android"))'.dependencies]
+cpal = "0.15"
+native-tls = "0.2"
+tokio-native-tls = "0.3"
+
 [target.'cfg(target_os = "android")'.dependencies]
 # Android NDK integration
 ndk = "0.9"
@@ -183,11 +177,13 @@ oboe = { version = "0.6", features = ["java-interface"] }
 # Logging for logcat
 android_logger = "0.14"
 
-# Replace cpal with oboe on Android
-[target.'cfg(not(target_os = "android"))'.dependencies]
-cpal = "0.15"
+# ==================== FEATURE FLAGS ====================
+[features]
+default = []
+x11-input = ["x11"]
+legacy-macos = []
 
-# ==================== ANDROID BUILD CONFIGURATION ====================
+# ==================== BUILD CONFIGURATION ====================
 [lib]
 name = "opennow_streamer"
 crate-type = ["cdylib", "rlib"]  # cdylib for Android, rlib for tests
@@ -195,4 +191,3 @@ crate-type = ["cdylib", "rlib"]  # cdylib for Android, rlib for tests
 [[bin]]
 name = "opennow-streamer"
 path = "src/main.rs"
-required-features = []  # Desktop-only binary
