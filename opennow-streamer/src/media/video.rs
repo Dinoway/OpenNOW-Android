@@ -2353,7 +2353,6 @@ impl VideoDecoder {
     pub fn frames_decoded(&self) -> u64 {
         self.frames_decoded
     }
-}
 
 impl Drop for VideoDecoder {
     fn drop(&mut self) {
