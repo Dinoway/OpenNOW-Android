@@ -12,9 +12,6 @@ use anyhow::{Result, Context};
 use log::{info, debug, warn, error};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
-#[cfg(target_os = "android")]
-use tokio_tungstenite::Connector;
-
 /// Generate WebSocket key for handshake
 fn generate_ws_key() -> String {
     let random_bytes: [u8; 16] = rand::random();
@@ -184,18 +181,18 @@ impl GfnSignaling {
 
         #[cfg(target_os = "android")]
         let (ws_stream, response) = {
-            use tokio_tungstenite::tungstenite::client::IntoClientRequest;
-            let mut req = ws_url.into_client_request()?;
-            req.headers_mut().insert("Cookie", format!("access_token={}", access_token).parse()?);
-
-            tokio_tungstenite::connect_async_tls_with_config(
-                req,
+            // Android: use rustls through tokio-tungstenite
+            tokio_tungstenite::client_async_tls_with_config(
+                request,
+                tls_stream,
                 Some(ws_config),
-                false,
                 None,
             )
                 .await
-                .context("WebSocket handshake failed")?
+                .map_err(|e| {
+                    error!("WebSocket handshake error (Android): {:?}", e);
+                    anyhow::anyhow!("WebSocket handshake failed: {}", e)
+                })?
         };
 
         info!("Connected! Response: {:?}", response.status());

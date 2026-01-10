@@ -9,21 +9,37 @@ use anyhow::Result;
 use log::info;
 use std::sync::Arc;
 use parking_lot::Mutex;
+use tokio::sync::mpsc;
 
 /// Android audio decoder (stub)
 pub struct AudioDecoder {
-    // Placeholder
+    sample_tx: mpsc::Sender<Vec<i16>>,
+    sample_rx: Option<mpsc::Receiver<Vec<i16>>>,
 }
 
 impl AudioDecoder {
-    pub fn new() -> Result<Self> {
+    pub fn new(_sample_rate: u32, _channels: u16) -> Result<Self> {
         info!("Android audio decoder stub initialized (MediaCodec implementation pending)");
-        Ok(Self {})
+        let (sample_tx, sample_rx) = mpsc::channel(100);
+        Ok(Self {
+            sample_tx,
+            sample_rx: Some(sample_rx),
+        })
     }
 
     pub fn decode(&mut self, _data: &[u8]) -> Result<Vec<i16>> {
         // Return silence for now (20ms at 48kHz stereo)
         Ok(vec![0; 1920])
+    }
+
+    pub fn decode_async(&mut self, _data: &[u8]) {
+        // Stub - send silence
+        let silence = vec![0i16; 1920];
+        let _ = self.sample_tx.try_send(silence);
+    }
+
+    pub fn take_sample_receiver(&mut self) -> Option<mpsc::Receiver<Vec<i16>>> {
+        self.sample_rx.take()
     }
 }
 

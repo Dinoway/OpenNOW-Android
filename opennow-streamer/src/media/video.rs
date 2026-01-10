@@ -755,15 +755,20 @@ impl VideoDecoder {
         #[cfg(target_os = "android")]
         {
             log::info!("Android video decoder stub (MediaCodec coming in Phase 3)");
+
+            // Create dummy channels matching the VideoDecoder structure
+            let (cmd_tx, _cmd_rx) = mpsc::channel::<DecoderCommand>();
+            let (_frame_tx, frame_rx) = mpsc::channel::<Option<VideoFrame>>();
             let (stats_tx_internal, stats_rx) = tokio_mpsc::channel(10);
 
             Ok((
                 Self {
-                    width,
-                    height,
-                    decoder: UnifiedVideoDecoder::Stub,
-                    shared_frame,
-                    stats_tx: stats_tx_internal,
+                    cmd_tx,
+                    frame_rx,
+                    stats_rx: None,
+                    hw_accel: false,
+                    frames_decoded: 0,
+                    shared_frame: Some(shared_frame),
                 },
                 stats_rx,
             ))
