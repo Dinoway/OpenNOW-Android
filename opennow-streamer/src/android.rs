@@ -24,7 +24,7 @@ pub struct AndroidAppState {
 
 /// Android entry point (called by android-activity)
 #[no_mangle]
-fn android_main(android_app: AndroidApp) {
+pub fn android_main(android_app: AndroidApp) {
     // Initialize Android logger (outputs to logcat)
     android_logger::init_once(
         android_logger::Config::default()
@@ -48,10 +48,12 @@ fn android_main(android_app: AndroidApp) {
     };
 
     // Initialize NDK context for JNI calls
-    ndk_context::initialize_android_context(
-        android_app.vm_as_ptr() as *mut _,
-        android_app.activity_as_ptr() as *mut _,
-    );
+    unsafe {
+        ndk_context::initialize_android_context(
+            android_app.vm_as_ptr() as *mut _,
+            android_app.activity_as_ptr() as *mut _,
+        );
+    }
 
     info!("NDK context initialized");
 
