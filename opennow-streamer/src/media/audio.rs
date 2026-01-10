@@ -4,6 +4,8 @@
 //! Optimized for low-latency streaming with jitter buffer.
 //! Supports dynamic device switching and sample rate conversion.
 
+#![cfg(not(target_os = "android"))]
+
 use anyhow::{anyhow, Context, Result};
 use log::{debug, error, info, warn};
 use parking_lot::Mutex;

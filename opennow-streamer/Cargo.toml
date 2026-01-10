@@ -23,12 +23,9 @@ futures-util = "0.3"
 
 # TLS (native-tls moved to platform-specific section below)
 
-# Audio decoding - FFmpeg for Opus (all platforms)
-# Video decoding uses native APIs (DXVA on Windows, Vulkan Video on Linux, VideoToolbox on macOS)
-ffmpeg-next = "8"
-
-# Keep OpenH264 as fallback (all platforms)
-openh264 = "0.6"
+# Audio decoding - FFmpeg for Opus (desktop only, Android uses MediaCodec)
+# Video decoding uses native APIs (DXVA on Windows, Vulkan Video on Linux, VideoToolbox on macOS, MediaCodec on Android)
+# Note: FFmpeg gated for desktop - Android will use MediaCodec in Phase 3
 
 # Audio decoding (stub for now - will add opus decoding later)
 # audiopus requires CMake to build, so we'll stub audio for now
@@ -160,6 +157,8 @@ egui = { git = "https://github.com/zortos293/egui", branch = "wgpu-28" }
 cpal = "0.15"
 native-tls = "0.2"
 tokio-native-tls = "0.3"
+ffmpeg-next = "8"
+openh264 = "0.6"
 
 [target.'cfg(target_os = "android")'.dependencies]
 # Android NDK integration

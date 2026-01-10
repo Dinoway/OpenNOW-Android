@@ -33,7 +33,15 @@ pub mod vulkan_video;
 #[cfg(target_os = "linux")]
 pub mod gstreamer_decoder;
 
+#[cfg(target_os = "android")]
+mod audio_android;
+
+#[cfg(target_os = "android")]
+pub use audio_android::*;
+
+#[cfg(not(target_os = "android"))]
 pub use audio::*;
+
 pub use rtp::{DepacketizerCodec, RtpDepacketizer};
 pub use video::{get_supported_decoder_backends, DecodeStats, UnifiedVideoDecoder, VideoDecoder};
 
