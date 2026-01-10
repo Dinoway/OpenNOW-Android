@@ -45,6 +45,7 @@ fn main() {
     panic!("main() should not be called on Android - use android_main() instead");
 }
 
+
 /// Application handler for winit 0.30+
 struct OpenNowApp {
     /// Tokio runtime handle
