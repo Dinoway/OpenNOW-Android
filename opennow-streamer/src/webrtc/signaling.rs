@@ -12,6 +12,9 @@ use anyhow::{Result, Context};
 use log::{info, debug, warn, error};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
+#[cfg(target_os = "android")]
+use tokio_tungstenite::Connector;
+
 /// Generate WebSocket key for handshake
 fn generate_ws_key() -> String {
     let random_bytes: [u8; 16] = rand::random();
@@ -113,12 +116,16 @@ impl GfnSignaling {
         info!("Connecting to signaling: {}", url);
         info!("Using subprotocol: {}", subprotocol);
 
-        // Use TLS connector that accepts self-signed certs
+        // Use TLS_connector that accepts self-signed certs
+        #[cfg(not(target_os = "android"))]
         let tls_connector = native_tls::TlsConnector::builder()
             .danger_accept_invalid_certs(true)
             .danger_accept_invalid_hostnames(true)
             .build()
             .context("Failed to build TLS connector")?;
+
+        #[cfg(target_os = "android")]
+        let tls_connector = (); // Android uses rustls through tokio-tungstenite
 
         // Connect TCP first
         let host = self.server_ip.split(':').next().unwrap_or(&self.server_ip);
@@ -130,10 +137,14 @@ impl GfnSignaling {
             .context("TCP connection failed")?;
 
         info!("TCP connected, starting TLS handshake...");
+        #[cfg(not(target_os = "android"))]
         let tls_stream = tokio_native_tls::TlsConnector::from(tls_connector)
             .connect(host, tcp_stream)
             .await
             .context("TLS handshake failed")?;
+
+        #[cfg(target_os = "android")]
+        let tls_stream = tcp_stream; // Will use rustls connector below
 
         info!("TLS connected, starting WebSocket handshake...");
 
@@ -159,6 +170,7 @@ impl GfnSignaling {
             ..Default::default()
         };
 
+        #[cfg(not(target_os = "android"))]
         let (ws_stream, response) = tokio_tungstenite::client_async_with_config(
             request,
             tls_stream,
@@ -169,6 +181,22 @@ impl GfnSignaling {
             error!("WebSocket handshake error: {:?}", e);
             anyhow::anyhow!("WebSocket handshake failed: {}", e)
         })?;
+
+        #[cfg(target_os = "android")]
+        let (ws_stream, response) = {
+            use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+            let mut req = ws_url.into_client_request()?;
+            req.headers_mut().insert("Cookie", format!("access_token={}", access_token).parse()?);
+
+            tokio_tungstenite::connect_async_tls_with_config(
+                req,
+                Some(ws_config),
+                false,
+                None,
+            )
+                .await
+                .context("WebSocket handshake failed")?
+        };
 
         info!("Connected! Response: {:?}", response.status());
 
@@ -296,7 +324,7 @@ impl GfnSignaling {
         });
 
         if let Some(nvst) = nvst_sdp {
-            // Try to parse as JSON object (for nvstSdp wrapper), otherwise treat as string
+            // Try to parse as JSON_object (for nvstSdp wrapper), otherwise treat as string
             if let Ok(val) = serde_json::from_str::<Value>(nvst) {
                 answer["nvstSdp"] = val;
             } else {

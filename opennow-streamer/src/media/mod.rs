@@ -36,11 +36,13 @@ pub mod gstreamer_decoder;
 #[cfg(target_os = "android")]
 mod audio_android;
 
-#[cfg(target_os = "android")]
-pub use audio_android::*;
-
+// Audio module - FFmpeg on desktop, stub on Android
 #[cfg(not(target_os = "android"))]
-pub use audio::*;
+pub use audio::{AudioDecoder, AudioPlayer, OpusDecoder};
+
+#[cfg(target_os = "android")]
+pub use audio_android::{AudioDecoder, AudioPlayer};
+
 
 pub use rtp::{DepacketizerCodec, RtpDepacketizer};
 pub use video::{get_supported_decoder_backends, DecodeStats, UnifiedVideoDecoder, VideoDecoder};

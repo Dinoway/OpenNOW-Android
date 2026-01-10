@@ -751,6 +751,24 @@ impl VideoDecoder {
 
             Ok((decoder, stats_rx))
         } // end #[cfg(target_os = "macos")]
+
+        #[cfg(target_os = "android")]
+        {
+            log::info!("Android video decoder stub (MediaCodec coming in Phase 3)");
+            let (stats_tx_internal, stats_rx) = tokio_mpsc::channel(10);
+
+            Ok((
+                Self {
+                    width,
+                    height,
+                    decoder: UnifiedVideoDecoder::Stub,
+                    shared_frame,
+                    stats_tx: stats_tx_internal,
+                },
+                stats_rx,
+            ))
+        }
+    }
     }
 
     /// Spawn a dedicated decoder thread (FFmpeg-based, not used on Linux)
@@ -2371,6 +2389,29 @@ pub enum UnifiedVideoDecoder {
 pub enum UnifiedVideoDecoder {
     /// Linux uses Vulkan Video or GStreamer (placeholder for unified interface)
     Ffmpeg(VideoDecoder),
+}
+
+// Android video decoder stub (MediaCodec implementation coming in Phase 3)
+#[cfg(target_os = "android")]
+pub enum UnifiedVideoDecoder {
+    // Stub for Phase 1 - will be replaced with MediaCodec in Phase 3
+    Stub,
+}
+
+#[cfg(target_os = "android")]
+impl UnifiedVideoDecoder {
+    pub fn decode_async(&mut self, _data: &[u8], _receive_time: std::time::Instant) -> Result<()> {
+        // Stub - returns immediately
+        Ok(())
+    }
+
+    pub fn is_hw_accelerated(&self) -> bool {
+        false // Will be true once MediaCodec is implemented
+    }
+
+    pub fn frames_decoded(&self) -> u64 {
+        0
+    }
 }
 
 impl UnifiedVideoDecoder {
