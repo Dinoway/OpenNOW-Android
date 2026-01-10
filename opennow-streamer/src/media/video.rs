@@ -2310,62 +2310,6 @@ impl VideoDecoder {
         }
     }
 
-    /// Decode a NAL unit - sends to decoder thread and receives result
-    /// WARNING: This is BLOCKING and will stall the calling thread!
-    /// For low-latency streaming, use `decode_async()` instead.
-    pub fn decode(&mut self, data: &[u8]) -> Result<Option<VideoFrame>> {
-        // Send decode command
-        self.cmd_tx
-            .send(DecoderCommand::Decode(data.to_vec()))
-            .map_err(|_| anyhow!("Decoder thread closed"))?;
-
-        // Receive result (blocking)
-        match self.frame_rx.recv() {
-            Ok(frame) => {
-                if frame.is_some() {
-                    self.frames_decoded += 1;
-                }
-                Ok(frame)
-            }
-            Err(_) => Err(anyhow!("Decoder thread closed")),
-        }
-    }
-
-    /// Decode a NAL unit asynchronously - fire and forget
-    /// The decoded frame will be written directly to the SharedFrame.
-    /// Stats are sent via the stats channel returned from `new_async()`.
-    ///
-    /// This method NEVER blocks the calling thread, making it ideal for
-    /// the main streaming loop where input responsiveness is critical.
-    pub fn decode_async(&mut self, data: &[u8], receive_time: std::time::Instant) -> Result<()> {
-        self.cmd_tx
-            .send(DecoderCommand::DecodeAsync {
-                data: data.to_vec(),
-                receive_time,
-            })
-            .map_err(|_| anyhow!("Decoder thread closed"))?;
-
-        self.frames_decoded += 1; // Optimistic count
-        Ok(())
-    }
-
-    /// Check if using hardware acceleration
-    pub fn is_hw_accelerated(&self) -> bool {
-        self.hw_accel
-    }
-
-    /// Get number of frames decoded
-    pub fn frames_decoded(&self) -> u64 {
-        self.frames_decoded
-    }
-
-impl Drop for VideoDecoder {
-    fn drop(&mut self) {
-        // Signal decoder thread to stop
-        let _ = self.cmd_tx.send(DecoderCommand::Stop);
-    }
-}
-
 // ============================================================================
 // Unified Video Decoder - Wraps FFmpeg or Native DXVA decoder
 // ============================================================================
@@ -2391,7 +2335,7 @@ pub enum UnifiedVideoDecoder {
 
 #[cfg(target_os = "linux")]
 pub enum UnifiedVideoDecoder {
-    /// Linux uses Vulkan Video or GStreamer (placeholder for unified interface)
+    /// Linux uses Vulkan Video or GStreamer
     Ffmpeg(VideoDecoder),
 }
 
@@ -2402,22 +2346,7 @@ pub enum UnifiedVideoDecoder {
     Stub,
 }
 
-#[cfg(target_os = "android")]
-impl UnifiedVideoDecoder {
-    pub fn decode_async(&mut self, _data: &[u8], _receive_time: std::time::Instant) -> Result<()> {
-        // Stub - returns immediately
-        Ok(())
-    }
-
-    pub fn is_hw_accelerated(&self) -> bool {
-        false // Will be true once MediaCodec is implemented
-    }
-
-    pub fn frames_decoded(&self) -> u64 {
-        0
-    }
-}
-
+// Single unified impl block for ALL platforms
 impl UnifiedVideoDecoder {
     /// Create a new unified decoder with the specified backend
     pub fn new_async(
@@ -2456,8 +2385,16 @@ impl UnifiedVideoDecoder {
             return Ok((UnifiedVideoDecoder::Native(native_decoder), stats_rx));
         }
 
+        // Android: Return stub
+        #[cfg(target_os = "android")]
+        {
+            log::info!("Android video decoder stub (MediaCodec coming in Phase 3)");
+            let (_stats_tx, stats_rx) = tokio_mpsc::channel(10);
+            Ok((UnifiedVideoDecoder::Stub, stats_rx))
+        }
+
         // macOS/Linux: Use FFmpeg decoder
-        #[cfg(not(target_os = "windows"))]
+        #[cfg(not(any(target_os = "windows", target_os = "android")))]
         {
             let (ffmpeg_decoder, stats_rx) =
                 VideoDecoder::new_async(codec, _backend, shared_frame)?;
@@ -2468,33 +2405,42 @@ impl UnifiedVideoDecoder {
     /// Decode a frame asynchronously
     pub fn decode_async(&mut self, data: &[u8], receive_time: std::time::Instant) -> Result<()> {
         match self {
-            #[cfg(not(target_os = "windows"))]
-            UnifiedVideoDecoder::Ffmpeg(decoder) => decoder.decode_async(data, receive_time),
             #[cfg(target_os = "windows")]
             UnifiedVideoDecoder::Native(decoder) => {
                 decoder.decode_async(data.to_vec(), receive_time);
                 Ok(())
             }
+            #[cfg(target_os = "android")]
+            UnifiedVideoDecoder::Stub => {
+                // Stub - returns immediately
+                Ok(())
+            }
+            #[cfg(not(any(target_os = "windows", target_os = "android")))]
+            UnifiedVideoDecoder::Ffmpeg(decoder) => decoder.decode_async(data, receive_time),
         }
     }
 
     /// Check if using hardware acceleration
     pub fn is_hw_accelerated(&self) -> bool {
         match self {
-            #[cfg(not(target_os = "windows"))]
-            UnifiedVideoDecoder::Ffmpeg(decoder) => decoder.is_hw_accelerated(),
             #[cfg(target_os = "windows")]
             UnifiedVideoDecoder::Native(decoder) => decoder.is_hw_accel(),
+            #[cfg(target_os = "android")]
+            UnifiedVideoDecoder::Stub => false,
+            #[cfg(not(any(target_os = "windows", target_os = "android")))]
+            UnifiedVideoDecoder::Ffmpeg(decoder) => decoder.is_hw_accelerated(),
         }
     }
 
     /// Get number of frames decoded
     pub fn frames_decoded(&self) -> u64 {
         match self {
-            #[cfg(not(target_os = "windows"))]
-            UnifiedVideoDecoder::Ffmpeg(decoder) => decoder.frames_decoded(),
             #[cfg(target_os = "windows")]
             UnifiedVideoDecoder::Native(decoder) => decoder.frames_decoded(),
+            #[cfg(target_os = "android")]
+            UnifiedVideoDecoder::Stub => 0,
+            #[cfg(not(any(target_os = "windows", target_os = "android")))]
+            UnifiedVideoDecoder::Ffmpeg(decoder) => decoder.frames_decoded(),
         }
     }
 }
