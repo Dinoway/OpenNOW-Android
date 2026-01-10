@@ -17,15 +17,6 @@ mod webrtc;
 #[cfg(target_os = "android")]
 mod android;
 
-#[cfg(target_os = "android")]
-pub use android::android_main;
-
-// Desktop entry point
-#[cfg(not(target_os = "android"))]
-fn main() -> Result<()> {
-    // ... existing main() code stays here
-}
-
 // Prevent main() from being called on Android
 #[cfg(target_os = "android")]
 fn main() {
@@ -41,6 +32,7 @@ use winit::application::ApplicationHandler;
 use winit::event::{DeviceEvent, DeviceId, ElementState, KeyEvent, Modifiers, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{Key, KeyCode, NamedKey, PhysicalKey};
+#[cfg(not(target_os = "android"))]
 use winit::platform::scancode::PhysicalKeyExtScancode;
 use winit::window::WindowId;
 
@@ -561,6 +553,7 @@ impl ApplicationHandler for OpenNowApp {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 fn main() -> Result<()> {
     // Initialize logging
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
