@@ -39,6 +39,11 @@ use winit::window::WindowId;
 use app::{App, AppState};
 use gui::Renderer;
 
+// Prevent main() from being called on Android (Android uses android_main)
+#[cfg(target_os = "android")]
+fn main() {
+    panic!("main() should not be called on Android - use android_main() instead");
+}
 
 /// Application handler for winit 0.30+
 struct OpenNowApp {
