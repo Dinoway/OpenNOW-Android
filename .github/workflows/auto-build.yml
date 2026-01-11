@@ -363,6 +363,42 @@ jobs:
                   targetSdk 34
                   versionCode 1
                   versionName "${{ needs.get-version.outputs.version_number }}"
+          
+                  ndk {
+                      abiFilters 'arm64-v8a', 'armeabi-v7a'
+                  }
+              }
+
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                  }
+              }
+
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_1_8
+                  targetCompatibility JavaVersion.VERSION_1_8
+              }
+
+              packaging {
+                  jniLibs {
+                      useLegacyPackaging = false
+                      keepDebugSymbols += ['**/*.so']
+                  }
+              }
+          }
+          EOF
+
+          android {
+              namespace 'com.opennow.streamer'
+              compileSdk 34
+
+              defaultConfig {
+                  applicationId "com.opennow.streamer"
+                  minSdk 29
+                  targetSdk 34
+                  versionCode 1
+                  versionName "${{ needs.get-version.outputs.version_number }}"
               }
 
               buildTypes {
@@ -479,6 +515,36 @@ jobs:
         working-directory: android-project
         run: |
           ./gradlew assembleRelease --stacktrace
+
+      - name: Verify APK Contents
+        working-directory: android-project
+        run: |
+          echo "=== Verifying APK structure ==="
+          APK_PATH="app/build/outputs/apk/release/app-release-unsigned.apk"
+          
+          if [ ! -f "$APK_PATH" ]; then
+            echo "ERROR: APK not found at $APK_PATH"
+            exit 1
+          fi
+          
+          echo "APK size: $(du -h $APK_PATH | cut -f1)"
+          
+          echo -e "\n=== Native libraries in APK ==="
+          unzip -l "$APK_PATH" | grep "\.so$" || echo "WARNING: No .so files found!"
+          
+          echo -e "\n=== lib/ directory contents ==="
+          unzip -l "$APK_PATH" | grep "^.*lib/" || echo "WARNING: No lib/ directory!"
+          
+          # Extract and verify .so file size
+          SO_SIZE=$(unzip -l "$APK_PATH" | grep "libopennow_streamer.so" | awk '{print $1}')
+          if [ -z "$SO_SIZE" ]; then
+            echo "ERROR: libopennow_streamer.so not found in APK!"
+            exit 1
+          elif [ "$SO_SIZE" -lt 1000000 ]; then
+            echo "WARNING: .so file seems too small ($SO_SIZE bytes)"
+          else
+            echo "✓ Native library found: $SO_SIZE bytes"
+          fi
 
       - name: Sign APK (debug signature)
         run: |
