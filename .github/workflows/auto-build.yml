@@ -389,36 +389,6 @@ jobs:
           }
           EOF
 
-          android {
-              namespace 'com.opennow.streamer'
-              compileSdk 34
-
-              defaultConfig {
-                  applicationId "com.opennow.streamer"
-                  minSdk 29
-                  targetSdk 34
-                  versionCode 1
-                  versionName "${{ needs.get-version.outputs.version_number }}"
-              }
-
-              buildTypes {
-                  release {
-                      minifyEnabled false
-                  }
-              }
-
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_1_8
-                  targetCompatibility JavaVersion.VERSION_1_8
-              }
-
-              packagingOptions {
-                  jniLibs {
-                      useLegacyPackaging = true
-                  }
-              }
-          }
-          EOF
 
       - name: Create project-level build.gradle
         run: |
