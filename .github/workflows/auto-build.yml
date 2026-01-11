@@ -434,12 +434,17 @@ jobs:
           # Create strings.xml
           echo '<?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">OpenNOW</string></resources>' > android-project/app/src/main/res/values/strings.xml
 
+      - name: Setup Gradle wrapper
+        working-directory: android-project
+        run: |
+          # Generate gradle wrapper with compatible version
+          gradle wrapper --gradle-version=8.5 --distribution-type=bin
+          chmod +x gradlew
+
       - name: Build APK with Gradle
         working-directory: android-project
         run: |
-          chmod +x gradlew || true
-          ./gradlew assembleRelease --stacktrace || \
-          (cd .. && gradle -p android-project assembleRelease --stacktrace)
+          ./gradlew assembleRelease --stacktrace
 
       - name: Sign APK (debug signature)
         run: |
