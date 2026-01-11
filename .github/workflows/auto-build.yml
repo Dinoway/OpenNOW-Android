@@ -437,9 +437,43 @@ jobs:
       - name: Setup Gradle wrapper
         working-directory: android-project
         run: |
-          # Generate gradle wrapper with compatible version
-          gradle wrapper --gradle-version=8.5 --distribution-type=bin
+          echo "Downloading Gradle 8.5 wrapper files..."
+          
+          # Create gradle wrapper directory
+          mkdir -p gradle/wrapper
+          
+          # Download gradle-wrapper.jar
+          curl -L -o gradle/wrapper/gradle-wrapper.jar \
+            https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradle/wrapper/gradle-wrapper.jar
+          
+          # Create gradle-wrapper.properties
+          cat > gradle/wrapper/gradle-wrapper.properties << 'WRAPPER_EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip
+          networkTimeout=10000
+          validateDistributionUrl=true
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          WRAPPER_EOF
+          
+          # Create gradlew script
+          cat > gradlew << 'GRADLEW_EOF'
+          #!/bin/sh
+          APP_BASE_NAME=${0##*/}
+          APP_HOME=$( cd "${0%/*}" && pwd )
+          exec "$APP_HOME/gradle/wrapper/gradle-wrapper.jar" org.gradle.wrapper.GradleWrapperMain "$@"
+          GRADLEW_EOF
+          
+          # Download full gradlew from Gradle repo
+          curl -L -o gradlew \
+            https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradlew
+          
           chmod +x gradlew
+          
+          echo "Gradle wrapper setup complete"
+          ./gradlew --version
+
 
       - name: Build APK with Gradle
         working-directory: android-project
