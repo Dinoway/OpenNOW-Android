@@ -6,6 +6,10 @@ description = "High-performance native streaming client for GeForce NOW"
 authors = ["OpenNow"]
 license = "MIT"
 
+[lib]
+name = "opennow_streamer"
+crate-type = ["cdylib", "rlib"] # cdylib for Android, rlib for desktop
+
 [dependencies]
 # Async runtime
 tokio = { version = "1", features = ["full", "sync", "time", "rt-multi-thread", "macros"] }
@@ -173,10 +177,20 @@ tracy = ["tracing-tracy", "tracing-log"]
 # Disables zero-copy Metal rendering and uses CPU-copy fallback
 # Build with: cargo build --release --features legacy-macos
 legacy-macos = []
+android-mediacodec = [] # Feature flag for MediaCodec decoder
 
 [target.'cfg(target_os = "linux")'.dependencies.wgpu-hal]
 version = "28"
 features = ["vulkan"]
+
+[target.'cfg(target_os = "android")'.dependencies]
+android-activity = { version = "0.6", features = ["native-activity"] }
+android_logger = "0.15.1"
+ndk = "0.9"
+ndk-sys = "0.6"
+ndk-context = "0.1"
+jni = "0.21"
+log-panics = { version = "2", features = ["with-backtrace"] }
 
 [profile.release]
 opt-level = 3

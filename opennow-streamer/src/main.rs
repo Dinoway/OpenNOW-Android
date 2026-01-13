@@ -32,6 +32,11 @@ use winit::window::WindowId;
 use app::{App, AppState, UiAction};
 use gui::Renderer;
 
+#[cfg(target_os = "android")]
+use android_activity::{
+    AndroidApp, InputStatus, MainEvent, PollEvent,
+};
+
 /// Application handler for winit 0.30+
 struct OpenNowApp {
     /// Tokio runtime handle
@@ -627,6 +632,7 @@ impl ApplicationHandler for OpenNowApp {
     }
 }
 
+#[cfg(not(target_os = "android"))]
 fn main() -> Result<()> {
     // Initialize profiling (Tracy) if enabled
     // Build with: cargo build --release --features tracy
@@ -660,6 +666,59 @@ fn main() -> Result<()> {
 
     // Run event loop with application handler
     event_loop.run_app(&mut app)?;
+
+    Ok(())
+}
+
+// Android Entry Point
+#[cfg(target_os = "android")]
+#[no_mangle]
+fn android_main(app: AndroidApp) {
+    use log::Level;
+
+    // Initialize Android logger (writes to logcat)
+    android_logger::init_once(
+        android_logger::Config::default()
+            .with_max_level(log::LevelFilter::Info)
+            .with_tag("OpenNOW")
+    );
+
+    // Setup panic handler for better crash logs
+    log_panics::init();
+
+    info!("OpenNow Streamer v{} (Android)", env!("CARGO_PKG_VERSION"));
+    info!("Android API Level: {}", ndk_context::android_context().sdk_version());
+
+    // Create tokio runtime for async operations
+    let runtime = match tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+    {
+        Ok(rt) => rt,
+        Err(e) => {
+            log::error!("Failed to create tokio runtime: {}", e);
+            return;
+        }
+    };
+
+    // Run the Android app loop
+    if let Err(e) = run_android_app(app, runtime.handle().clone()) {
+        log::error!("Android app error: {}", e);
+    }
+}
+
+#[cfg(target_os = "android")]
+fn run_android_app(app: AndroidApp, runtime: tokio::runtime::Handle) -> Result<()> {
+    use winit::platform::android::EventLoopBuilderExtAndroid;
+
+    let event_loop = EventLoop::builder()
+        .with_android_app(app)
+        .build()?;
+
+    event_loop.set_control_flow(ControlFlow::Wait);
+
+    let mut opennow_app = OpenNowApp::new(runtime);
+    event_loop.run_app(&mut opennow_app)?;
 
     Ok(())
 }
